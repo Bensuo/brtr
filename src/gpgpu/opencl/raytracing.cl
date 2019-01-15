@@ -24,16 +24,25 @@ struct AABB{
     float3 position;
     float3 min;
     float3 max;
-    struct Triangle tri;
-    unsigned material;
 };
 struct Material{
     float3 diffuse;
     float3 specular;
 };
+
+
 struct Node{
     int children[4];
-    int aabb;
+    struct AABB aabb;
+    unsigned leaf_node;
+};
+
+struct LeafNode
+{
+    struct AABB aabb;
+    struct Triangle tri;
+    unsigned material;
+    unsigned morton;
 };
 struct RayResult
 {
@@ -130,7 +139,7 @@ bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, f
     result->colour = convert_uchar3(0.5f*(float3)(norm.x + 1, norm.y + 1, norm.z +1)*255.0f);
     return true; */
 }
-void intersects_aabb(Ray r, struct AABB aabb, struct RayResult* result, float* t)
+bool intersects_aabb(Ray r, struct AABB aabb)
 {
     float tx1 = (aabb.min.x - r.origin.x)/r.inv_dir.x;
     float tx2 = (aabb.max.x - r.origin.x)/r.inv_dir.x;
@@ -156,17 +165,65 @@ void intersects_aabb(Ray r, struct AABB aabb, struct RayResult* result, float* t
     } */
     if(tmax >= max(0.0f, tmin))
     {
-        bool hit = intersects_triangle(r, aabb.tri, result, t);
-        if(hit && !result->hit)
-        {
-             result->hit = hit;
-        }
+        return true;
         /* result->hit = true;
         result->colour = (uchar3)(255,0,0); */
     }
 
-    if((*result).hit) (*result).mat = aabb.material;
+    return false;
 }
+struct RayResult trace(Ray ray,
+    __global struct Node* nodes,
+    int num_nodes,
+    __global struct LeafNode* leaf_nodes)
+    {
+        struct RayResult result;
+        result.hit = false;
+        float t = FLT_MAX;
+
+        global struct Node* stack[64];
+        global struct Node** stack_ptr = stack;
+
+        *stack_ptr++ = NULL;
+        
+        int iterations = 0;
+        global struct Node* node = nodes;
+        do
+        {
+            
+            iterations++;
+            if(node->leaf_node > 0)
+            {
+                
+                global struct LeafNode* leaf = leaf_nodes + node->leaf_node - 1;
+                bool hit = intersects_triangle(ray, leaf->tri, &result, &t);
+                if(hit && !result.hit)
+                {
+                    result.hit = hit;
+                }
+            }
+            else{
+                for(int i = 0; i < 4; i++)
+            {
+                if(node->children[i] != 0)
+                {
+                    global struct Node* n = nodes + node->children[i];
+                    bool hit = intersects_aabb(ray, node->aabb);
+                    if(hit)
+                    {
+                        
+                        *stack_ptr++ = n;
+                    }
+                }
+            }
+            }
+            node = *--stack_ptr; // pop next node
+            
+        }while(node != NULL);
+
+        
+        return result;
+    }
 int global_index(const int offset_x, const int offset_y)
 {
     int x = get_global_id(0) + offset_x;
@@ -187,7 +244,7 @@ uchar3 colour(Ray r)
 __kernel void ray_trace(
     __global struct Node* nodes,
     int num_nodes,
-    __global struct AABB* aabbs,
+    __global struct LeafNode* leaf_nodes,
     __global struct Material* materials,
     __global uchar4* out,
     __constant float3* camera
@@ -205,19 +262,9 @@ __kernel void ray_trace(
     r.inv_dir = r.direction;
     //r.inv_dir = (float3){1.0f / r.direction.x, 1.0f / r.direction.y, 1.0f / r.direction.z};
 
-    struct RayResult result;
-    result.hit = false;
-    float t = FLT_MAX;
+    
     uchar3 output;
-    for(int i = 0; i < num_nodes; i++)
-    {
-        struct Node node = nodes[i];
-        if(node.aabb >= 0)
-        {
-            intersects_aabb(r, aabbs[node.aabb], &result, &t);
-        }
-        
-    }
+    struct RayResult result = trace(r, nodes, num_nodes, leaf_nodes);
     /* struct AABB test;
     test.position = (float3)(0);
     test.min = (float3)(-2.5f);

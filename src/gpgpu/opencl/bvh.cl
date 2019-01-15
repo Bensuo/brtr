@@ -11,6 +11,17 @@ struct AABB{
     float3 position;
     float3 min;
     float3 max;
+};
+
+struct Node{
+    int children[4];
+    struct AABB aabb;
+    unsigned leaf_node;
+};
+
+struct LeafNode
+{
+    struct AABB aabb;
     struct Triangle tri;
     unsigned material;
     unsigned morton;
@@ -24,7 +35,7 @@ unsigned expand_bits(unsigned v)
     return v;
 }
 
-unsigned calc_morton(float x, float t, float z)
+unsigned calc_morton(float x, float y, float z)
 {
     x = min(max(x * 1024.0f, 0.0f), 1023.0f);
     y = min(max(y * 1024.0f, 0.0f), 1023.0f);
@@ -44,16 +55,16 @@ int global_index(const int offset_x, const int offset_y)
     return (x + y * get_global_size(0));
 }
 __kernel void calc_bounding_boxes(
-    __global struct AABB* boxes
+    __global struct LeafNode* leaf_nodes
 )
 {
-    struct AABB box = boxes[get_global_id(0)]; 
+    struct LeafNode node = leaf_nodes[get_global_id(0)]; 
     float3 min = (float3)(FLT_MAX);
     float3 max = (float3)(FLT_MIN);
 
     for(int i = 0; i < 3; i++)
     {
-        float3 pos = box.tri.verts[i].position;
+        float3 pos = node.tri.verts[i].position;
 
         min.x = pos.x < min.x ? pos.x : min.x;
         min.y = pos.y < min.y ? pos.y : min.y;
@@ -63,9 +74,9 @@ __kernel void calc_bounding_boxes(
         max.z = pos.z > max.z ? pos.z : max.z;
 
     }
-    box.min = min;
-    box.max = max;
-    box.position = min + 0.5f * max-min;
-    box.morton = calc_morton(box.pos.x, box.pos.y, box.pos.z);
-    boxes[get_global_id(0)] = box;
+    node.aabb.min = min;
+    node.aabb.max = max;
+    node.aabb.position = min + 0.5f * (max-min);
+    node.morton = calc_morton(node.aabb.position.x, node.aabb.position.y, node.aabb.position.z);
+    leaf_nodes[get_global_id(0)] = node;
 }

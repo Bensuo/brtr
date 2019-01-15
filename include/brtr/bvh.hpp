@@ -19,17 +19,22 @@ namespace brtr
 		glm::aligned_vec3 position;
 		glm::aligned_vec3 min;
 		glm::aligned_vec3 max;
-		triangle tri;
-		unsigned material;
-		unsigned morton;
 	};
 
 	struct node
 	{
 		int children[4];
-		int aabb;
+		aabb bounds;
+		unsigned leaf_node;
 	};
 
+	struct leaf_node
+	{
+		aabb bounds;
+		triangle tri;
+		unsigned material;
+		unsigned morton;
+	};
 
 	class bounding_volume_hierarchy
 	{
@@ -37,10 +42,10 @@ namespace brtr
 		bounding_volume_hierarchy(std::shared_ptr<platform> platform);
 		void add_mesh(const mesh& model_mesh, int material_index);
 		void construct();
-		const std::vector<aabb>& aabbs() const;
+		const std::vector<leaf_node>& leaf_nodes() const;
 		std::shared_ptr<buffer> aabbs_buffer() const
 		{
-			return m_aabbs_buffer;
+			return m_leaf_nodes_buffer;
 		}
 		std::shared_ptr<buffer> nodes_buffer() const
 		{
@@ -54,8 +59,8 @@ namespace brtr
 		std::shared_ptr<gpgpu_platform> m_platform;
 		std::unique_ptr<kernel> m_kernel;
 		std::vector<node> m_nodes;
-		std::vector<aabb> m_aabbs;
-		std::shared_ptr<buffer> m_aabbs_buffer;
+		std::vector<leaf_node> m_leaf_nodes;
+		std::shared_ptr<buffer> m_leaf_nodes_buffer;
 		std::shared_ptr<buffer> m_nodes_buffer;
 	};
 }
