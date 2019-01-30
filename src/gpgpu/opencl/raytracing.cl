@@ -1,15 +1,17 @@
-typedef struct TagSphere{
+typedef struct TagSphere
+{
     float radius;
     float3 pos;
     float3 emi;
     float3 colour;
-}Sphere;
+} Sphere;
 
-typedef struct TagRay{
+typedef struct TagRay
+{
     float3 origin;
     float3 direction;
     float3 inv_dir;
-}Ray;
+} Ray;
 
 struct Vertex
 {
@@ -20,17 +22,19 @@ struct Triangle
 {
     struct Vertex verts[3];
 };
-struct AABB{
+struct AABB
+{
     float3 min;
     float3 max;
 };
-struct Material{
+struct Material
+{
     float3 diffuse;
     float3 specular;
 };
 
-
-struct Node{
+struct Node
+{
     int children[4];
     struct AABB aabb;
     unsigned leaf_node;
@@ -63,18 +67,23 @@ struct Camera
 bool intersects_sphere(Ray ray, Sphere sphere, float* t)
 {
     float3 rayToCenter = sphere.pos - ray.origin;
-    //float a = dot(ray.direction, ray.direction);
+    // float a = dot(ray.direction, ray.direction);
     float b = dot(rayToCenter, ray.direction);
-    float c = dot(rayToCenter, rayToCenter) - sphere.radius*sphere.radius;
-    float disc = b*b-c;
+    float c = dot(rayToCenter, rayToCenter) - sphere.radius * sphere.radius;
+    float disc = b * b - c;
 
-    if(disc < 0.0f) return false;
-    else *t = b - sqrt(disc);
-    if(*t <0.0f){
+    if (disc < 0.0f)
+        return false;
+    else
+        *t = b - sqrt(disc);
+    if (*t < 0.0f)
+    {
         *t = b + sqrt(disc);
-        if(*t < 0.0f) return false;
+        if (*t < 0.0f)
+            return false;
     }
-    else return true;
+    else
+        return true;
 }
 bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, float* t)
 {
@@ -82,21 +91,24 @@ bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, f
     float3 vertex1 = tri.verts[1].position;
     float3 vertex2 = tri.verts[2].position;
     float3 edge1, edge2, h, s, q;
-    float a,f,u,v;
+    float a, f, u, v;
     edge1 = vertex1 - vertex0;
     edge2 = vertex2 - vertex0;
     h = cross(r.direction, edge2);
     a = dot(h, edge1);
-    if(fabs(a) < FLT_EPSILON) return false;
-    f = 1.0f/a;
+    if (fabs(a) < FLT_EPSILON)
+        return false;
+    f = 1.0f / a;
     s = r.origin - vertex0;
-    u = f * dot(s,h);
-    if(u < 0.0f || u > 1.0f) return false;
+    u = f * dot(s, h);
+    if (u < 0.0f || u > 1.0f)
+        return false;
     q = cross(s, edge1);
     v = f * dot(r.direction, q);
-    if(v < 0.0f || u + v > 1.0f) return false;
-    float t2 = f*dot(edge2, q);
-    
+    if (v < 0.0f || u + v > 1.0f)
+        return false;
+    float t2 = f * dot(edge2, q);
+
     if (t2 > 0.001f && t2 < (*t))
     {
         (*t) = t2;
@@ -104,7 +116,7 @@ bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, f
         result->reflected = true;
         result->hit_point = r.origin + r.direction * t2;
         result->new_dir = normalize(-2 * dot(r.direction, norm) * norm + r.direction);
-        //result->colour = convert_uchar3(0.5f * (float3)(norm.x + 1, norm.y + 1, norm.z + 1) * 255.0f);
+        // result->colour = convert_uchar3(0.5f * (float3)(norm.x + 1, norm.y + 1, norm.z + 1) * 255.0f);
         return true;
     }
 
@@ -141,34 +153,34 @@ bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, f
     C = cross(edge2, vp2);
     if(dot(norm, C) < 0) return false; // P is on right side
 
-    result->colour = convert_uchar3(0.5f*(float3)(norm.x + 1, norm.y + 1, norm.z +1)*255.0f);
-    return true; */
+    result->colour = convert_uchar3(0.5f*(float3)(norm.x + 1, norm.y + 1, norm.z
+    +1)*255.0f); return true; */
 }
 bool intersects_aabb(Ray r, struct AABB aabb)
 {
-    float tx1 = (aabb.min.x - r.origin.x)/r.inv_dir.x;
-    float tx2 = (aabb.max.x - r.origin.x)/r.inv_dir.x;
+    float tx1 = (aabb.min.x - r.origin.x) / r.inv_dir.x;
+    float tx2 = (aabb.max.x - r.origin.x) / r.inv_dir.x;
 
     float tmin = min(tx1, tx2);
     float tmax = max(tx1, tx2);
 
-    float ty1 = (aabb.min.y - r.origin.y)/r.inv_dir.y;
-    float ty2 = (aabb.max.y - r.origin.y)/r.inv_dir.y;
+    float ty1 = (aabb.min.y - r.origin.y) / r.inv_dir.y;
+    float ty2 = (aabb.max.y - r.origin.y) / r.inv_dir.y;
 
     tmin = max(tmin, min(ty1, ty2));
     tmax = min(tmax, max(ty1, ty2));
 
-    float tz1 = (aabb.min.z - r.origin.z)/r.inv_dir.z;
-    float tz2 = (aabb.max.z - r.origin.z)/r.inv_dir.z;
+    float tz1 = (aabb.min.z - r.origin.z) / r.inv_dir.z;
+    float tz2 = (aabb.max.z - r.origin.z) / r.inv_dir.z;
 
     tmin = max(tmin, min(tz1, tz2));
     tmax = min(tmax, max(tz1, tz2));
 
-/* if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-    {
-        printf("test: %f,%f,%f,%f,%f,%f\n", tx1, tx2, ty1, ty2, tz1, tz2, tmin, tmax);
-    } */
-    if(tmax >= max(0.0f, tmin))
+    /* if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
+        {
+            printf("test: %f,%f,%f,%f,%f,%f\n", tx1, tx2, ty1, ty2, tz1, tz2, tmin, tmax);
+        } */
+    if (tmax >= max(0.0f, tmin))
     {
         return true;
         /* result->hit = true;
@@ -177,65 +189,63 @@ bool intersects_aabb(Ray r, struct AABB aabb)
 
     return false;
 }
-struct RayResult trace(Ray ray,
-    __global struct Node* nodes,
-    int num_nodes,
-    __global struct LeafNode* leaf_nodes)
+struct RayResult trace(Ray ray, __global struct Node* nodes, int num_nodes, __global struct LeafNode* leaf_nodes)
+{
+    struct RayResult result;
+    result.hit = false;
+    float t = FLT_MAX;
+
+    global struct Node* stack[64];
+    global struct Node** stack_ptr = stack;
+
+    *stack_ptr++ = NULL;
+
+    int iterations = 0;
+    global struct Node* node = nodes;
+    do
     {
-        struct RayResult result;
-        result.hit = false;
-        float t = FLT_MAX;
-
-        global struct Node* stack[64];
-        global struct Node** stack_ptr = stack;
-
-        *stack_ptr++ = NULL;
-        
-        int iterations = 0;
-        global struct Node* node = nodes;
-        do
+        iterations++;
+        if (node->leaf_node > 0)
         {
-            
-            iterations++;
-            if(node->leaf_node > 0)
+            global struct LeafNode* leaf = leaf_nodes + node->leaf_node - 1;
+            bool hit = intersects_triangle(ray, leaf->tri, &result, &t);
+            if (hit && !result.hit)
             {
-                
-                global struct LeafNode* leaf = leaf_nodes + node->leaf_node - 1;
-                bool hit = intersects_triangle(ray, leaf->tri, &result, &t);
-                if(hit && !result.hit)
-                {
-                    result.mat = leaf->material;
-                    result.hit = hit;
-                }
+                result.mat = leaf->material;
+                result.hit = hit;
             }
-            else{
-                for(int i = 0; i < 4; i++)
+        }
+        else
+        {
+            bool hit = intersects_aabb(ray, node->aabb);
+            if (hit)
             {
-                if(node->children[i] != 0)
+                for (int i = 0; i < 4; i++)
                 {
-                    global struct Node* n = nodes + node->children[i];
-                    bool hit = intersects_aabb(ray, node->aabb);
-                    if(hit)
+                    if (node->children[i] != 0)
                     {
-                        
-                        *stack_ptr++ = n;
+                        global struct Node* n = nodes + node->children[i];
+                        hit = intersects_aabb(ray, n->aabb);
+                        if (hit)
+                        {
+                            *stack_ptr++ = n;
+                        }
                     }
                 }
             }
-            }
-            node = *--stack_ptr; // pop next node
-            
-        }while(node != NULL);
+        }
+        node = *--stack_ptr; // pop next node
 
-        
-        return result;
-    }
+    } while (node != NULL);
+
+    return result;
+}
 int global_index(const int offset_x, const int offset_y)
 {
     int x = get_global_id(0) + offset_x;
     int y = get_global_id(1) + offset_y;
-    x = x < 0 ? 0 : x >= get_global_size(0) ? get_global_size(0)-1 : x;
-    y = y < 0 ? 0 : y >= get_global_size(1) ? get_global_size(1)-1 : y;
+    x = x < 0 ? 0 : x >= get_global_size(0) ? get_global_size(0) - 1 : x;
+    y = y < 0 ? 0 : y >= get_global_size(1) ? get_global_size(1) - 1 : y;
     return (x + y * get_global_size(0));
 }
 float3 colour(Ray r)
@@ -243,7 +253,7 @@ float3 colour(Ray r)
     float t = 0.5f + (r.direction.y);
     float3 start_colour = (float3)(1.0f);
     float3 end_colour = (float3){0.5f, 0.95f, 1.0f};
-    float3 out_colour = (1.0f-t)*start_colour + t*end_colour;
+    float3 out_colour = (1.0f - t) * start_colour + t * end_colour;
     return out_colour;
 }
 
@@ -253,10 +263,8 @@ __kernel void ray_trace(
     __global struct LeafNode* leaf_nodes,
     __global struct Material* materials,
     __global uchar4* out,
-    __constant float3* camera
-    )
+    __constant float3* camera)
 {
-
     float aspect_ratio = (float)get_global_size(0) / (float)get_global_size(1);
     float scale = 1.0f;
     float u = (((float)get_global_id(0) / get_global_size(0)));
@@ -264,34 +272,33 @@ __kernel void ray_trace(
 
     Ray r;
     r.origin = camera[0];
-    r.direction = normalize(camera[1] + u*camera[2] + v*camera[3] - camera[0]);
+    r.direction = normalize(camera[1] + u * camera[2] + v * camera[3] - camera[0]);
     r.inv_dir = r.direction;
-    //r.inv_dir = (float3){1.0f / r.direction.x, 1.0f / r.direction.y, 1.0f / r.direction.z};
+    // r.inv_dir = (float3){1.0f / r.direction.x, 1.0f / r.direction.y, 1.0f / r.direction.z};
 
-    
     float3 accumulated_colour = (float3)(1.0f);
     struct RayResult result;
-    for(int i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
     {
         result = trace(r, nodes, num_nodes, leaf_nodes);
-        
-        if(result.hit)
+
+        if (result.hit)
         {
             accumulated_colour *= materials[result.mat].diffuse;
-            //accumulated_colour *= 0.9f;
-            if(result.reflected)
+            // accumulated_colour *= 0.9f;
+            if (result.reflected)
             {
                 r.origin = result.hit_point;
                 r.direction = result.new_dir;
                 r.inv_dir = r.direction;
             }
         }
-        else{
+        else
+        {
             accumulated_colour *= colour(r);
-            //accumulated_colour *= (float3)(1.0f, 0.0f, 0.0f);
+            // accumulated_colour *= (float3)(1.0f, 0.0f, 0.0f);
             break;
         }
-        
     }
     //
     /* struct AABB test;
@@ -310,7 +317,7 @@ __kernel void ray_trace(
         //output = convert_uchar3(materials[result.mat].diffuse * 255.0f);
     } */
 
-    out[global_index(0,0)] = (uchar4)(convert_uchar3(accumulated_colour * 255.99f), 255);
+    out[global_index(0, 0)] = (uchar4)(convert_uchar3(accumulated_colour * 255.99f), 255);
     /* uchar3 output;
     Sphere sphere1;
     sphere1.radius = 0.4f;
@@ -319,7 +326,9 @@ __kernel void ray_trace(
     float t = 1e20;
     intersects_sphere(r, sphere1, &t);
     
+
     
+
     if(t > 1e19)
     {
         output = colour(r);
@@ -329,8 +338,7 @@ __kernel void ray_trace(
         float3 normal = normalize((r.origin + r.direction * t) - sphere1.pos);
         output = convert_uchar3(0.5f*(float3)(normal.x + 1, normal.y + 1, normal.z +1)*255.0f);
         //output = convert_uchar3(sphere1.colour * 255.0f);
-    }  
+    }
 
     out[global_index(0,0)] = (uchar4)(output, 255); */
-    
 }
