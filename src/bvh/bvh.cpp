@@ -42,7 +42,6 @@ namespace brtr
             max.z = glm::max(surround.max.z, new_box.max.z);
             surround.min = min;
             surround.max = max;
-            surround.position = min + (max - min) * 0.5f;
         };
 
         int rounded_nodes = m_leaf_nodes.size() + m_leaf_nodes.size() % 4;

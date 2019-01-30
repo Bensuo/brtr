@@ -21,7 +21,6 @@ struct Triangle
     struct Vertex verts[3];
 };
 struct AABB{
-    float3 position;
     float3 min;
     float3 max;
 };

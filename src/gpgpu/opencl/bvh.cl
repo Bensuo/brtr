@@ -8,7 +8,6 @@ struct Triangle
     struct Vertex verts[3];
 };
 struct AABB{
-    float3 position;
     float3 min;
     float3 max;
 };
@@ -61,7 +60,7 @@ __kernel void calc_bounding_boxes(
     struct LeafNode node = leaf_nodes[get_global_id(0)]; 
     float3 min = (float3)(FLT_MAX);
     float3 max = (float3)(FLT_MIN);
-
+    float3 pos;
     for(int i = 0; i < 3; i++)
     {
         float3 pos = node.tri.verts[i].position;
@@ -76,7 +75,7 @@ __kernel void calc_bounding_boxes(
     }
     node.aabb.min = min;
     node.aabb.max = max;
-    node.aabb.position = min + 0.5f * (max-min);
-    node.morton = calc_morton(node.aabb.position.x, node.aabb.position.y, node.aabb.position.z);
+    pos = min + (max-min) / 2;
+    node.morton = calc_morton(pos.x, pos.y, pos.z);
     leaf_nodes[get_global_id(0)] = node;
 }

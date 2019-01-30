@@ -16,7 +16,6 @@ namespace brtr
     };
     struct aabb
     {
-        glm::aligned_vec3 position;
         glm::aligned_vec3 min;
         glm::aligned_vec3 max;
     };
