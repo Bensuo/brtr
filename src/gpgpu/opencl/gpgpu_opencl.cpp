@@ -34,7 +34,8 @@ namespace brtr
 			throw std::runtime_error("Error: No OpenCL devices found");
 		}
 		m_device = devices[0];
-
+		cl_long size;
+		m_device.getInfo(CL_DEVICE_LOCAL_MEM_SIZE, &size);
 		m_context = cl::Context(m_device);
 		m_queue = cl::CommandQueue(m_context, m_device, CL_QUEUE_PROFILING_ENABLE);
 

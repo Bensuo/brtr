@@ -46,6 +46,9 @@ struct LeafNode
 };
 struct RayResult
 {
+    bool reflected;
+    float3 hit_point;
+    float3 new_dir;
     bool hit;
     unsigned mat;
     uchar3 colour;
@@ -95,11 +98,14 @@ bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, f
     if(v < 0.0f || u + v > 1.0f) return false;
     float t2 = f*dot(edge2, q);
     
-    if (t2 > FLT_EPSILON && t2 < (*t))
+    if (t2 > 0.001f && t2 < (*t))
     {
         (*t) = t2;
         float3 norm = normalize(cross(edge1, edge2));
-        result->colour = convert_uchar3(0.5f * (float3)(norm.x + 1, norm.y + 1, norm.z + 1) * 255.0f);
+        result->reflected = true;
+        result->hit_point = r.origin + r.direction * t2;
+        result->new_dir = normalize(-2 * dot(r.direction, norm) * norm + r.direction);
+        //result->colour = convert_uchar3(0.5f * (float3)(norm.x + 1, norm.y + 1, norm.z + 1) * 255.0f);
         return true;
     }
 
@@ -199,6 +205,7 @@ struct RayResult trace(Ray ray,
                 bool hit = intersects_triangle(ray, leaf->tri, &result, &t);
                 if(hit && !result.hit)
                 {
+                    result.mat = leaf->material;
                     result.hit = hit;
                 }
             }
@@ -232,13 +239,13 @@ int global_index(const int offset_x, const int offset_y)
     y = y < 0 ? 0 : y >= get_global_size(1) ? get_global_size(1)-1 : y;
     return (x + y * get_global_size(0));
 }
-uchar3 colour(Ray r)
+float3 colour(Ray r)
 {
     float t = 0.5f + (r.direction.y);
-    float3 start_colour = (float3){255, 255, 255};
-    float3 end_colour = (float3){128, 220, 255};
+    float3 start_colour = (float3)(1.0f);
+    float3 end_colour = (float3){0.5f, 0.95f, 1.0f};
     float3 out_colour = (1.0f-t)*start_colour + t*end_colour;
-    return convert_uchar3(out_colour);
+    return out_colour;
 }
 
 __kernel void ray_trace(
@@ -263,15 +270,38 @@ __kernel void ray_trace(
     //r.inv_dir = (float3){1.0f / r.direction.x, 1.0f / r.direction.y, 1.0f / r.direction.z};
 
     
-    uchar3 output;
-    struct RayResult result = trace(r, nodes, num_nodes, leaf_nodes);
+    float3 accumulated_colour = (float3)(1.0f);
+    struct RayResult result;
+    for(int i = 0; i < 2; i++)
+    {
+        result = trace(r, nodes, num_nodes, leaf_nodes);
+        
+        if(result.hit)
+        {
+            accumulated_colour *= materials[result.mat].diffuse;
+            //accumulated_colour *= 0.9f;
+            if(result.reflected)
+            {
+                r.origin = result.hit_point;
+                r.direction = result.new_dir;
+                r.inv_dir = r.direction;
+            }
+        }
+        else{
+            accumulated_colour *= colour(r);
+            //accumulated_colour *= (float3)(1.0f, 0.0f, 0.0f);
+            break;
+        }
+        
+    }
+    //
     /* struct AABB test;
     test.position = (float3)(0);
     test.min = (float3)(-2.5f);
     test.max = (float3)(2.5f);
     test.material = 0;
     intersects_aabb(r, test, &result); */
-    if(!result.hit)
+    /* if(!result.hit)
     {
         output = colour(r);
     }
@@ -279,9 +309,9 @@ __kernel void ray_trace(
         //output = (uchar3)(255,0,0);
         output = result.colour;
         //output = convert_uchar3(materials[result.mat].diffuse * 255.0f);
-    }
+    } */
 
-    out[global_index(0,0)] = (uchar4)(output, 255);
+    out[global_index(0,0)] = (uchar4)(convert_uchar3(accumulated_colour * 255.99f), 255);
     /* uchar3 output;
     Sphere sphere1;
     sphere1.radius = 0.4f;
