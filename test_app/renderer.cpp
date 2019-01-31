@@ -141,7 +141,12 @@ void renderer::render()
     ImGui::Text("BVH Construction time: %.2fms", stats.bvh_construction);
     ImGui::Text("Bvh GPU: %.2fms", stats.bvh_gpu);
     ImGui::Text("Raytrace kernel time: %.2fms", stats.total_raytrace);
-
+    ImGui::Text("Average overall time: %.2fms", stats.lifetime_overall / stats.num_iterations);
+    ImGui::Text("Average raytrace kernel: %.2fms", stats.lifetime_kernel / stats.num_iterations);
+    ImGui::Text("Average bvh gpu: %.2fms", stats.lifetime_bvh_gpu / stats.num_iterations);
+    ImGui::Text(
+        "Average bvh construction: %.2fms",
+        stats.lifetime_bvh_construction / stats.num_iterations);
     ImGui::End();
 
     ImGui::Render();

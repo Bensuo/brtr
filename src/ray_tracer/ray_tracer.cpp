@@ -58,6 +58,11 @@ namespace brtr
         stats.bvh_construction = m_bvh.get_last_construction_time();
         stats.bvh_gpu = m_bvh.get_last_execution_time_gpu();
         stats.total_raytrace = m_raytrace_kernel->get_last_execution_time();
+        stats.lifetime_overall += stats.total_overall;
+        stats.lifetime_kernel += stats.total_raytrace;
+        stats.lifetime_bvh_gpu += stats.bvh_gpu;
+        stats.lifetime_bvh_construction += stats.bvh_construction;
+        stats.num_iterations++;
     }
 
     void ray_tracer::add_mesh(mesh& mesh)

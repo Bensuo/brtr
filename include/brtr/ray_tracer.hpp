@@ -13,6 +13,11 @@ namespace brtr
     class kernel;
     struct tracer_stats
     {
+        float lifetime_overall{0.0f};
+        float lifetime_kernel{0.0f};
+        float lifetime_bvh_gpu{0.0f};
+        float lifetime_bvh_construction{0.0f};
+        float num_iterations{0.0f};
         float total_overall;
         float total_raytrace;
         float total_bvh;
