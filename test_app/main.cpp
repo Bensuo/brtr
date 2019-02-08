@@ -72,8 +72,18 @@ brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
             specular.b = ai_specular.b;
         }
 
+        aiColor3D ai_emissive;
+        glm::aligned_vec3 emissive;
+        if (AI_SUCCESS == ai_mat->Get(AI_MATKEY_COLOR_EMISSIVE, ai_emissive))
+        {
+            emissive.r = ai_emissive.r;
+            emissive.g = ai_emissive.g;
+            emissive.b = ai_emissive.b;
+        }
+
         material.diffuse = diffuse;
         material.specular = specular;
+        material.emissive = emissive;
     }
 
     return {vertices, indices, material};
@@ -105,7 +115,7 @@ int main(int argc, char* argv[])
     brtr::ray_tracer tracer{platform, camera, screen_width, screen_height, 1};
     renderer render{screen_width, screen_height, tracer};
     std::vector<brtr::mesh> meshes;
-    const char* path_to_scene = "../../test_app/Assets/test_scene_monkeys.obj";
+    const char* path_to_scene = "../../test_app/Assets/square.obj";
     std::ifstream file;
     file.open(path_to_scene);
     if (!file)
