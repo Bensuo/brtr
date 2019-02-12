@@ -27,6 +27,7 @@ namespace brtr
         void run() override;
         void set_kernel_arg(int index, int val) override;
         void set_kernel_arg(int index, float val) override;
+        void set_kernel_arg(int index, size_t size, void* arg_ptr) override;
         const cl::Kernel& cl_kernel() const
         {
             return m_kernel;
@@ -45,6 +46,8 @@ namespace brtr
             last_execution_time = (end - start) / 1000000.0f;
             return last_execution_time;
         }
+
+        glm::ivec2 get_local_work_size() override;
 
     private:
         gpgpu_opencl& m_platform;

@@ -14,7 +14,7 @@ namespace brtr
     struct mesh_material
     {
         glm::aligned_vec3 diffuse;
-        glm::aligned_vec3 specular;
+        float roughness;
         glm::aligned_vec3 emissive;
     };
 

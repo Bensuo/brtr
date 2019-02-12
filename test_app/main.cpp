@@ -63,14 +63,14 @@ brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
             diffuse.b = ai_diffuse.b;
         }
 
-        aiColor3D ai_specular;
-        glm::aligned_vec3 specular;
-        if (AI_SUCCESS == ai_mat->Get(AI_MATKEY_COLOR_SPECULAR, ai_specular))
-        {
-            specular.r = ai_specular.r;
-            specular.g = ai_specular.g;
-            specular.b = ai_specular.b;
-        }
+        // aiColor3D ai_specular;
+        // glm::aligned_vec3 specular;
+        // if (AI_SUCCESS == ai_mat->Get(AI_MATKEY_COLOR_SPECULAR, ai_specular))
+        //{
+        //    specular.r = ai_specular.r;
+        //    specular.g = ai_specular.g;
+        //    specular.b = ai_specular.b;
+        //}
 
         aiColor3D ai_emissive;
         glm::aligned_vec3 emissive;
@@ -82,7 +82,7 @@ brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
         }
 
         material.diffuse = diffuse;
-        material.specular = specular;
+        material.roughness = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
         material.emissive = emissive;
     }
 
@@ -110,12 +110,12 @@ int main(int argc, char* argv[])
     brtr::camera camera;
     camera.set_fov(90.0f, (float)screen_width / (float)screen_height);
     camera.set_position(glm::vec3(0.0f, 0.5f, 5.0f));
-    camera.set_look_at(glm::vec3(0, 0, 0));
+    camera.set_look_at(glm::vec3(0, 0, -1));
     camera.set_up(glm::vec3(0, 1, 0));
     brtr::ray_tracer tracer{platform, camera, screen_width, screen_height, 1};
     renderer render{screen_width, screen_height, tracer};
     std::vector<brtr::mesh> meshes;
-    const char* path_to_scene = "../../test_app/Assets/square.obj";
+    const char* path_to_scene = "../../test_app/Assets/many_squares.obj";
     std::ifstream file;
     file.open(path_to_scene);
     if (!file)
@@ -138,12 +138,16 @@ int main(int argc, char* argv[])
     {
         tracer.add_mesh(mesh);
     }
+    brtr::point_light light;
+    light.position = glm::vec3{2, -1, 5};
+    light.colour = glm::vec3(50);
+    light.radius = 4.0f;
     // While application is running
     bool quit = false;
     SDL_Event e;
     void* texture_ptr = nullptr;
     int pitch;
-
+    SDL_SetRelativeMouseMode(SDL_TRUE);
     while (!quit)
     {
         // Handle events on queue
@@ -154,7 +158,11 @@ int main(int argc, char* argv[])
             {
                 quit = true;
             }
-
+            if (e.type == SDL_MOUSEMOTION)
+            {
+                camera.rotate(e.motion.yrel * 0.01f, glm::vec3(1, 0, 0));
+                camera.rotate(e.motion.xrel * 0.01f, glm::vec3(0, 1, 0));
+            }
             if (e.type == SDL_KEYDOWN)
             {
                 if (e.key.keysym.sym == SDLK_UP)
@@ -175,11 +183,27 @@ int main(int argc, char* argv[])
                 }
                 if (e.key.keysym.sym == SDLK_w)
                 {
-                    camera.set_position(camera.position() + glm::vec3(0, 0.1f, 0));
+                    // camera.set_position(camera.position() + glm::vec3(0, 0.1f, 0));
+                    camera.move_forward(0.2f);
                 }
                 if (e.key.keysym.sym == SDLK_s)
                 {
-                    camera.set_position(camera.position() + glm::vec3(0, -0.1f, 0));
+                    // camera.set_position(camera.position() + glm::vec3(0, -0.1f, 0));
+                    camera.move_forward(-0.2f);
+                }
+                if (e.key.keysym.sym == SDLK_a)
+                {
+                    // camera.set_position(camera.position() + glm::vec3(0, 0.1f, 0));
+                    camera.move_right(-0.2f);
+                }
+                if (e.key.keysym.sym == SDLK_d)
+                {
+                    // camera.set_position(camera.position() + glm::vec3(0, -0.1f, 0));
+                    camera.move_right(0.2f);
+                }
+                if (e.key.keysym.sym == SDLK_ESCAPE)
+                {
+                    quit = true;
                 }
                 // camera.set_look_at(camera.position() + glm::vec3(0, 0, -1));
             }

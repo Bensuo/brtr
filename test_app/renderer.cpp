@@ -26,8 +26,8 @@ renderer::renderer(int w, int h, brtr::ray_tracer& tracer)
         "BRTR Test App",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        screen_width,
-        screen_height,
+        screen_width / 2,
+        screen_height / 2,
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     const char* glsl_version = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
@@ -141,6 +141,7 @@ void renderer::render()
     ImGui::Text("BVH Construction time: %.2fms", stats.bvh_construction);
     ImGui::Text("Bvh GPU: %.2fms", stats.bvh_gpu);
     ImGui::Text("Raytrace kernel time: %.2fms", stats.total_raytrace);
+    ImGui::Text("Denoise kernel time: %.2fms", stats.denoise);
     ImGui::Text("Average overall time: %.2fms", stats.lifetime_overall / stats.num_iterations);
     ImGui::Text("Average raytrace kernel: %.2fms", stats.lifetime_kernel / stats.num_iterations);
     ImGui::Text("Average bvh gpu: %.2fms", stats.lifetime_bvh_gpu / stats.num_iterations);

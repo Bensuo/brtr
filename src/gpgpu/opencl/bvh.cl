@@ -53,6 +53,7 @@ int global_index(const int offset_x, const int offset_y)
     y = y < 0 ? 0 : y >= get_global_size(1) ? get_global_size(1)-1 : y;
     return (x + y * get_global_size(0));
 }
+
 __kernel void calc_bounding_boxes(
     __global struct LeafNode* leaf_nodes
 )

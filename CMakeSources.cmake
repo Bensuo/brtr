@@ -5,6 +5,7 @@ set(BRTR_CPP
     src/gpgpu/opencl/kernel_opencl.cpp
     src/gpgpu/gpgpu_platform.cpp
     src/bvh/bvh.cpp
+    src/denoiser/denoiser.cpp
     src/brtr_platform.cpp
     src/camera.cpp
 )
@@ -28,4 +29,6 @@ set(BRTR_INC
     include/brtr/bvh.hpp
     include/brtr/brtr_platform.hpp
     include/brtr/camera.hpp
+    include/brtr/light.hpp
+    include/brtr/denoiser.hpp
 )

@@ -130,4 +130,13 @@ namespace brtr
         m_kernel.setArg(index, val);
     }
 
+    void kernel_opencl::set_kernel_arg(int index, size_t size, void* arg_ptr)
+    {
+        m_kernel.setArg(index, size, arg_ptr);
+    }
+
+    glm::ivec2 kernel_opencl::get_local_work_size()
+    {
+        return {m_local_range[0], m_local_range[1]};
+    }
 } // namespace brtr
