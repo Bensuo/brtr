@@ -53,6 +53,7 @@ namespace brtr
         std::shared_ptr<buffer> m_result_buffer;
         std::vector<glm::vec3> m_random_dirs;
         std::shared_ptr<buffer> m_random_buffer;
+
         int m_width;
         int m_height;
         int m_samples_per_pixel;

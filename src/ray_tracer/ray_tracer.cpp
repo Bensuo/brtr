@@ -133,7 +133,7 @@ namespace brtr
 
     void ray_tracer::update_random_dirs()
     {
-        static int step = 12;
+        static int step = 4;
         static int offset = 0;
         static auto rand_float = []() {
             return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);

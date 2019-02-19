@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
     brtr::ray_tracer tracer{platform, camera, screen_width, screen_height, 1};
     renderer render{screen_width, screen_height, tracer};
     std::vector<brtr::mesh> meshes;
-    const char* path_to_scene = "../../test_app/Assets/many_squares.obj";
+    const char* path_to_scene = "../../test_app/Assets/many_squares_walls.obj";
     std::ifstream file;
     file.open(path_to_scene);
     if (!file)

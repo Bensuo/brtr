@@ -9,8 +9,8 @@ namespace brtr
           m_result_data(w * h * 4),
           m_radius(4)
     {
-        m_denoise_kernel =
-            m_gpgpu->load_kernel("../../src/gpgpu/opencl/denoise.cl", "denoise");
+        m_denoise_kernel = m_gpgpu->load_kernel(
+            "../../src/gpgpu/opencl/denoise-median.cl", "denoise");
         m_denoise_kernel->set_global_work_size(w, h);
         m_denoise_kernel->set_local_work_size();
 

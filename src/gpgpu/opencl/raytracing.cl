@@ -1,4 +1,4 @@
-#define DEPTH 4
+#define DEPTH 10
 #define RANDOM_VALUES (1 << 16)
 typedef enum TagObjectType
 {
