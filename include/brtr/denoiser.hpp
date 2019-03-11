@@ -8,7 +8,7 @@ namespace brtr
     class denoiser
     {
     public:
-        denoiser(std::shared_ptr<platform> platform, std::shared_ptr<buffer> image_buffer, int w, int h);
+        denoiser(std::shared_ptr<platform> platform, std::shared_ptr<buffer> image_buffer, int w, int h, bool median);
         void run();
         std::shared_ptr<buffer> result_buffer() const
         {
@@ -17,7 +17,7 @@ namespace brtr
 
         float execution_time()
         {
-            return m_execution_time;
+            return m_denoise_kernel->get_last_execution_time();
         }
 
     private:

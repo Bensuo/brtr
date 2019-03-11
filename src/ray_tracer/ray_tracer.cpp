@@ -17,18 +17,27 @@ namespace brtr
           m_image_data(w * h * 4, 0),
           m_result_buffer(m_gpgpu->create_buffer(
               buffer_access::write_only, sizeof(cl_uchar4), w * h, m_image_data.data())),
+          m_direct_buffer(m_gpgpu->create_buffer(
+              buffer_access::read_write, sizeof(cl_uchar4), w * h, nullptr)),
+          m_indirect_buffer(m_gpgpu->create_buffer(
+              buffer_access::read_write, sizeof(cl_uchar4), w * h, nullptr)),
           m_width(w),
           m_height(h),
           m_samples_per_pixel(samples_per_pixel),
           m_bvh(platform),
           m_camera(cam),
-          m_denoiser(platform, m_result_buffer, w, h)
+          m_denoiser(platform, m_indirect_buffer, w, h, false),
+          m_denoiser_median(platform, m_indirect_buffer, w, h, true)
     {
         std::cout << "Ray_tracer constructed\n";
         m_raytrace_kernel = m_gpgpu->load_kernel(
             "../../src/gpgpu/opencl/raytracing.cl", "ray_trace");
+        m_combine_kernel =
+            m_gpgpu->load_kernel("../../src/gpgpu/opencl/combine.cl", "combine");
         m_raytrace_kernel->set_global_work_size(m_width, m_height);
         m_raytrace_kernel->set_local_work_size();
+        m_combine_kernel->set_global_work_size(m_width, m_height);
+        m_combine_kernel->set_local_work_size();
         m_random_dirs.resize(1 << 16);
         generate_random_dirs();
         m_random_buffer = m_gpgpu->create_buffer(
@@ -53,14 +62,14 @@ namespace brtr
             m_materials.size(),
             m_materials.data());
         m_raytrace_kernel->set_kernel_arg(buffer_operation::write, 3, buf);
-        m_raytrace_kernel->set_kernel_arg(buffer_operation::read, 4, m_result_buffer);
+        m_raytrace_kernel->set_kernel_arg(buffer_operation::none, 4, m_direct_buffer);
         camera_gpu cam = m_camera.gpu();
         std::shared_ptr<buffer> camera_buffer = m_gpgpu->create_buffer(
             buffer_access::read_only, sizeof(camera_gpu), 1, &cam);
         m_raytrace_kernel->set_kernel_arg(buffer_operation::write, 5, camera_buffer);
         static auto rng = std::default_random_engine{};
         update_random_dirs();
-        // std::shuffle(m_random_dirs.begin(), m_random_dirs.end(), rng);
+        std::shuffle(m_random_dirs.begin(), m_random_dirs.end(), rng);
         m_raytrace_kernel->set_kernel_arg(buffer_operation::write, 6, m_random_buffer);
         m_lights_buffer = m_gpgpu->create_buffer(
             buffer_access::read_only,
@@ -68,10 +77,15 @@ namespace brtr
             m_lights.size(),
             m_lights.data());
         m_raytrace_kernel->set_kernel_arg(buffer_operation::write, 7, m_lights_buffer);
+        m_raytrace_kernel->set_kernel_arg(buffer_operation::none, 8, m_indirect_buffer);
         m_raytrace_kernel->run();
 
-        m_denoiser.run();
-
+        // m_denoiser.run();
+        // m_denoiser_median.run();
+        m_combine_kernel->set_kernel_arg(buffer_operation::none, 0, m_direct_buffer);
+        m_combine_kernel->set_kernel_arg(buffer_operation::none, 1, m_indirect_buffer);
+        m_combine_kernel->set_kernel_arg(buffer_operation::read, 2, m_result_buffer);
+        m_combine_kernel->run();
         m_gpgpu->run();
         std::chrono::high_resolution_clock::time_point end =
             std::chrono::high_resolution_clock::now();

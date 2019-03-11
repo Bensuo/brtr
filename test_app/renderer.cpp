@@ -111,10 +111,8 @@ renderer::~renderer()
     SDL_Quit();
 }
 
-void renderer::render()
+void renderer::render(float last_frame_time)
 {
-    std::chrono::high_resolution_clock::time_point start =
-        std::chrono::high_resolution_clock::now();
     bool active = false;
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
@@ -159,7 +157,4 @@ void renderer::render()
     SDL_GL_SwapWindow(imgui_window);
     SDL_RenderPresent(sdl_renderer);
     // Update screen
-    std::chrono::high_resolution_clock::time_point end =
-        std::chrono::high_resolution_clock::now();
-    last_frame_time = (end - start).count() / 1000000.0f;
 }

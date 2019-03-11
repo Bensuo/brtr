@@ -3,18 +3,24 @@
 
 namespace brtr
 {
-    denoiser::denoiser(std::shared_ptr<platform> platform, std::shared_ptr<buffer> image_buffer, int w, int h)
+    denoiser::denoiser(
+        std::shared_ptr<platform> platform,
+        std::shared_ptr<buffer> image_buffer,
+        int w,
+        int h,
+        bool median = true)
         : m_gpgpu(platform->gpgpu()),
           m_image_buffer(image_buffer),
           m_result_data(w * h * 4),
           m_radius(4)
     {
-        m_denoise_kernel = m_gpgpu->load_kernel(
-            "../../src/gpgpu/opencl/denoise-median.cl", "denoise");
+        std::string kernel = median ? "denoise-median.cl" : "denoise.cl";
+        m_denoise_kernel =
+            m_gpgpu->load_kernel("../../src/gpgpu/opencl/" + kernel, "denoise");
         m_denoise_kernel->set_global_work_size(w, h);
         m_denoise_kernel->set_local_work_size();
 
-        create_filter(1.0f);
+        create_filter(2.0f);
         // m_filter.assign(49, 1.0f / 49);
         m_filter_buffer = m_gpgpu->create_buffer(
             buffer_access::read_only, sizeof(float), m_filter.size(), m_filter.data());
@@ -29,8 +35,8 @@ namespace brtr
     {
         std::chrono::high_resolution_clock::time_point start =
             std::chrono::high_resolution_clock::now();
-        m_denoise_kernel->set_kernel_arg(buffer_operation::write, 0, m_image_buffer);
-        m_denoise_kernel->set_kernel_arg(buffer_operation::read, 1, m_result_buffer);
+        m_denoise_kernel->set_kernel_arg(buffer_operation::none, 0, m_image_buffer);
+        m_denoise_kernel->set_kernel_arg(buffer_operation::none, 1, m_result_buffer);
         m_denoise_kernel->set_kernel_arg(buffer_operation::write, 2, m_filter_buffer);
         auto work_size = m_denoise_kernel->get_local_work_size();
         m_denoise_kernel->set_kernel_arg(

@@ -11,11 +11,12 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <fstream>
+#include <glm/glm.hpp>
 #include <glm/gtc/type_aligned.hpp>
 #include <iostream>
 
-const int screen_width = 1280;
-const int screen_height = 720;
+const int screen_width = 1920;
+const int screen_height = 1080;
 
 brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {
@@ -83,6 +84,8 @@ brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
 
         material.diffuse = diffuse;
         material.roughness = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        static int count = 0;
+        material.roughness = count++ % 2 == 0 ? 1.0f : 0.001f;
         material.emissive = emissive;
     }
 
@@ -109,9 +112,12 @@ int main(int argc, char* argv[])
     auto platform = std::make_shared<brtr::platform>();
     brtr::camera camera;
     camera.set_fov(90.0f, (float)screen_width / (float)screen_height);
-    camera.set_position(glm::vec3(0.0f, 0.5f, 5.0f));
-    camera.set_look_at(glm::vec3(0, 0, -1));
+    camera.set_position(glm::vec3(-10.0f, 5.5f, -10.0f));
+    camera.set_look_at(glm::vec3(-1, 0, -1));
+    camera.rotate(glm::radians(900.0f), glm::vec3(0, 1, 0));
+    camera.rotate(glm::radians(450.0f), glm::vec3(1, 0, 0));
     camera.set_up(glm::vec3(0, 1, 0));
+    glm::vec3 camera_target{20.0f, 5.5f, 25.0f};
     brtr::ray_tracer tracer{platform, camera, screen_width, screen_height, 1};
     renderer render{screen_width, screen_height, tracer};
     std::vector<brtr::mesh> meshes;
@@ -148,8 +154,16 @@ int main(int argc, char* argv[])
     void* texture_ptr = nullptr;
     int pitch;
     SDL_SetRelativeMouseMode(SDL_TRUE);
+    std::chrono::high_resolution_clock::time_point start =
+        std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point end =
+        std::chrono::high_resolution_clock::now();
     while (!quit)
     {
+        std::chrono::high_resolution_clock::time_point end =
+            std::chrono::high_resolution_clock::now();
+        float delta = (end - start).count() / 1000000.0f;
+        // camera.move_right(0.0005f * delta);
         // Handle events on queue
         while (SDL_PollEvent(&e) != 0)
         {
@@ -211,7 +225,9 @@ int main(int argc, char* argv[])
         }
 
         tracer.run();
-        render.render();
+        render.render(delta);
+
+        start = end;
     }
 
     SDL_Quit();

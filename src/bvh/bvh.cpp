@@ -51,7 +51,7 @@ namespace brtr
         {
             total_nodes += to_add;
             to_add /= 4;
-            if (to_add == 1)
+            if (to_add <= 1)
             {
                 total_nodes += to_add;
                 break;

@@ -34,7 +34,8 @@ namespace brtr
         void run();
         std::shared_ptr<buffer> result_buffer() const
         {
-            return m_denoiser.result_buffer();
+            // return m_denoiser.result_buffer();
+            return m_result_buffer;
         }
         void add_mesh(mesh& mesh);
         void add_light(point_light& light);
@@ -50,10 +51,14 @@ namespace brtr
         std::unique_ptr<kernel> m_raytrace_kernel;
         std::unique_ptr<kernel> m_aabb_kernel;
         std::vector<uint8_t> m_image_data;
+        std::vector<uint8_t> m_direct_image;
+        std::vector<uint8_t> m_indirect_image;
+        std::shared_ptr<buffer> m_direct_buffer;
+        std::shared_ptr<buffer> m_indirect_buffer;
         std::shared_ptr<buffer> m_result_buffer;
         std::vector<glm::vec3> m_random_dirs;
         std::shared_ptr<buffer> m_random_buffer;
-
+        std::unique_ptr<kernel> m_combine_kernel;
         int m_width;
         int m_height;
         int m_samples_per_pixel;
@@ -63,6 +68,7 @@ namespace brtr
         std::shared_ptr<buffer> m_lights_buffer;
         camera& m_camera;
         denoiser m_denoiser;
+        denoiser m_denoiser_median;
         // Stats
         tracer_stats stats;
     };

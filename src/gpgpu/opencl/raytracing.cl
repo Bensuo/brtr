@@ -1,4 +1,4 @@
-#define DEPTH 10
+#define DEPTH 5
 #define RANDOM_VALUES (1 << 16)
 typedef enum TagObjectType
 {
@@ -311,24 +311,23 @@ __kernel void ray_trace(
     int num_nodes,
     __global struct LeafNode* leaf_nodes,
     __global struct Material* materials,
-    __global uchar4* out,
+    __global uchar4* out_direct,
     __constant float3* camera,
     __global float* random_seeds,
-    __global struct Light* lights)
+    __global struct Light* lights,
+        __global uchar4* out_indirect)
 {
     float aspect_ratio = (float)get_global_size(0) / (float)get_global_size(1);
     float scale = 1.0f;
     float u = (((float)get_global_id(0) / get_global_size(0)));
     float v = (float)get_global_id(1) / get_global_size(1);
+    
 
     Ray r;
     r.origin = camera[0];
     r.direction = normalize(camera[1] + u * camera[2] + v * camera[3] - camera[0]);
     r.inv_dir = r.direction;
     // r.inv_dir = (float3){1.0f / r.direction.x, 1.0f / r.direction.y, 1.0f / r.direction.z};
-
-    float3 accumulated_colour0 = (float3)(0.0f);
-    float3 accumulated_colour1 = (float3)(0.0f);
     struct RayResult result;
     int hit_mats[DEPTH];
     
@@ -371,6 +370,8 @@ __kernel void ray_trace(
         }
             }
             // accumulated_colour *= 0.9f;*/
+            // Directional Light
+            
             if (result.reflected)
             {
                 //int seed = random_seeds[global_index(0,0)];
@@ -385,7 +386,7 @@ __kernel void ray_trace(
             printf("reflect dir: %.2f, %.2f, %.2f\n", r.direction.x, r.direction.y, r.direction.z);
             printf("normal: %.2f, %.2f, %.2f\n", result.hit_normal.x, result.hit_normal.y, result.hit_normal.z);
         } */
-                r.direction = normalize(r.origin + r.direction * 2 + (get_rand_float3(random_seeds, wrapping_index(i))+ get_rand_float3(random_seeds, wrapping_index(i + 3))+ get_rand_float3(random_seeds, wrapping_index(i + 6)) / 3)* materials[result.mat].roughness - r.origin);
+                r.direction = normalize(r.origin + r.direction + (get_rand_float3(random_seeds, wrapping_index(i))+ get_rand_float3(random_seeds, wrapping_index(i + 3))+ get_rand_float3(random_seeds, wrapping_index(i + 6)) / 3)* materials[result.mat].roughness - r.origin);
                 
                 //random_seeds[global_index(0,0)] = seed;
                 
@@ -403,29 +404,30 @@ __kernel void ray_trace(
             break;
         }
     }
-    float3 out_colour = (float3)(1.0f);
+    float3 indirect = (float3)(1.0f);
+    float3 direct = (float3)(1.0f);
     for(int i = DEPTH - 1; i >= 0; i--)
     {
         
         if(hit_mats[i] >= 0)
         {
             struct Material mat = materials[hit_mats[i]];
-        out_colour = mat.emissive + mat.diffuse * out_colour;
-        if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-        {
-           // printf("mat: %d\n", hit_mats[i]);
-            //printf("emissive: %.2f, %.2f, %.2f\n", mat.emissive.x, mat.emissive.y, mat.emissive.z);
-           // printf("diffuse: %.2f, %.2f, %.2f\n", mat.diffuse.x, mat.diffuse.y, mat.diffuse.z);
-            //printf("out: %.2f, %.2f, %.2f\n", out_colour.x, out_colour.y, out_colour.z);
-        }
+            if(i > DEPTH)
+            {
+        indirect = mat.emissive + mat.diffuse * indirect;
+            }
+    else{
+
+        indirect = mat.emissive + mat.diffuse * indirect;
+
+     }
         }
         else{
-        //     if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-        // {
-        //     printf("out pre: %.2f, %.2f, %.2f\n", out_colour.x, out_colour.y, out_colour.z);
-        // }
-            //out_colour *= (float3){0.0f, 0.0f, 0.0f};
-            out_colour = colour(r) * 0.7f;
+            if(i > DEPTH)
+            indirect = colour(r) * 0.7f;
+            else{
+                indirect = colour(r) * 0.7f;
+            }
         }
         
     }
@@ -451,12 +453,10 @@ __kernel void ray_trace(
         output = result.colour;
         //output = convert_uchar3(materials[result.mat].diffuse * 255.0f);
     } */
-    out_colour = sqrt(out_colour);
-    out[global_index(0, 0)] = (uchar4)(convert_uchar3(out_colour * 255.99f), 255);
-    if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-    {
-        out[global_index(0, 0)] = (uchar4)(255,0,0, 255);
-    }
+    direct = sqrt(direct);
+    indirect = sqrt(indirect);
+    out_direct[global_index(0, 0)] = (uchar4)(convert_uchar3(direct * 255.99f), 255);
+    out_indirect[global_index(0, 0)] = (uchar4)(convert_uchar3(indirect * 255.99f), 255);
     /* uchar3 output;
     Sphere sphere1;
     sphere1.radius = 0.4f;
