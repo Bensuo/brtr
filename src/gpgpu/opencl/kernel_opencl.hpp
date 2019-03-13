@@ -49,6 +49,8 @@ namespace brtr
 
         glm::ivec2 get_local_work_size() override;
 
+        void set_local_work_size(size_t x) override;
+
     private:
         gpgpu_opencl& m_platform;
         cl::Device m_device;

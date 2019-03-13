@@ -139,4 +139,9 @@ namespace brtr
     {
         return {m_local_range[0], m_local_range[1]};
     }
+
+    void kernel_opencl::set_local_work_size(size_t x)
+    {
+        m_local_range = cl::NDRange(x);
+    }
 } // namespace brtr

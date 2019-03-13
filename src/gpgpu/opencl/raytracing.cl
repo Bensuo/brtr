@@ -1,4 +1,4 @@
-#define DEPTH 5
+#define DEPTH 3
 #define RANDOM_VALUES (1 << 16)
 typedef enum TagObjectType
 {
@@ -44,13 +44,15 @@ struct Material
 
 struct Node
 {
-    int children[4];
+    int parent;
+    int children[2];
     struct AABB aabb;
-    unsigned leaf_node;
+    unsigned leaf_node[2];
 };
 
 struct LeafNode
 {
+    int parent;
     struct AABB aabb;
     struct Triangle tri;
     unsigned material;
@@ -104,7 +106,6 @@ bool intersects_sphere(Ray ray, Sphere sphere, float* t)
 }
 bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, float* t)
 {
-    
     float3 vertex0 = tri.verts[0].position;
     float3 vertex1 = tri.verts[1].position;
     float3 vertex2 = tri.verts[2].position;
@@ -131,7 +132,6 @@ bool intersects_triangle(Ray r, struct Triangle tri, struct RayResult* result, f
     float d = dot(r.direction, norm);
     if (t2 > 0.001f && d < 0.0f && t2 < *t)
     {
-        
         (*t) = t2;
         result->reflected = true;
         result->hit_point = r.origin + r.direction * t2;
@@ -211,6 +211,8 @@ bool intersects_aabb(Ray r, struct AABB aabb, float* t)
 }
 struct RayResult trace(Ray ray, __global struct Node* nodes, int num_nodes, __global struct LeafNode* leaf_nodes)
 {
+
+    
     struct RayResult result;
     result.hit = false;
     float t = FLT_MAX;
@@ -226,12 +228,50 @@ struct RayResult trace(Ray ray, __global struct Node* nodes, int num_nodes, __gl
     {
         struct Node cached_node = *node;
         iterations++;
-        if (cached_node.leaf_node > 0)
+        
+        
+            bool hit = false;
+            for (int i = 0; i < 2; i++)
+            {
+                if (cached_node.children[i] >= 0)
+                {
+                    global struct Node* n = nodes + cached_node.children[i];
+                    hit = intersects_aabb(ray, n->aabb, &t);
+                    if (hit)
+                    {
+                        *stack_ptr++ = n;
+                    }
+                }
+                else
+                {
+                    global struct LeafNode* leaf = leaf_nodes + cached_node.leaf_node[i];
+                    struct LeafNode cached_leaf = *leaf;
+                    hit = intersects_triangle(ray, cached_leaf.tri, &result, &t);
+                    if (hit)
+                    {
+                        result.mat = cached_leaf.material;
+                        result.hit = hit;
+
+                        
+                    }
+                }
+            }
+       // }
+        /* if (cached_node.children[0] == -1)
         {
-            
-            global struct LeafNode* leaf = leaf_nodes + cached_node.leaf_node - 1;
-            struct LeafNode cached_leaf = *leaf;
-            bool hit = intersects_triangle(ray, cached_leaf.tri, &result, &t);
+
+            global struct LeafNode* leaf = leaf_nodes +
+        cached_node.leaf_node[0]; struct LeafNode cached_leaf = *leaf; bool hit
+        = intersects_triangle(ray, cached_leaf.tri, &result, &t); if (hit)
+            {
+                result.mat = cached_leaf.material;
+                result.hit = hit;
+            }
+
+            leaf = leaf_nodes + cached_node.leaf_node[1];
+            cached_leaf = *leaf;
+
+            hit = intersects_triangle(ray, cached_leaf.tri, &result, &t);
             if (hit)
             {
                 result.mat = cached_leaf.material;
@@ -243,9 +283,9 @@ struct RayResult trace(Ray ray, __global struct Node* nodes, int num_nodes, __gl
             bool hit = intersects_aabb(ray, cached_node.aabb, &t);
             if (hit)
             {
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 2; i++)
                 {
-                    if (cached_node.children[i] != 0)
+                    if (cached_node.children[i] >= 0)
                     {
                         global struct Node* n = nodes + cached_node.children[i];
                         hit = intersects_aabb(ray, n->aabb, &t);
@@ -256,7 +296,7 @@ struct RayResult trace(Ray ray, __global struct Node* nodes, int num_nodes, __gl
                     }
                 }
             }
-        }
+        } */
         node = *--stack_ptr; // pop next node
 
     } while (node != NULL);
@@ -276,9 +316,9 @@ int wrapping_index(int offset)
 {
     int x = get_global_id(0);
     int y = get_global_id(1);
-    int index  = x + y * get_global_size(0)  + offset;
+    int index = x + y * get_global_size(0) + offset;
     int total_size = get_global_size(0) * get_global_size(1);
-    //return index > total_size ? index - total_size : index;
+    // return index > total_size ? index - total_size : index;
     return index % RANDOM_VALUES;
 }
 float3 colour(Ray r)
@@ -315,13 +355,12 @@ __kernel void ray_trace(
     __constant float3* camera,
     __global float* random_seeds,
     __global struct Light* lights,
-        __global uchar4* out_indirect)
+    __global uchar4* out_indirect)
 {
     float aspect_ratio = (float)get_global_size(0) / (float)get_global_size(1);
     float scale = 1.0f;
     float u = (((float)get_global_id(0) / get_global_size(0)));
     float v = (float)get_global_id(1) / get_global_size(1);
-    
 
     Ray r;
     r.origin = camera[0];
@@ -330,74 +369,82 @@ __kernel void ray_trace(
     // r.inv_dir = (float3){1.0f / r.direction.x, 1.0f / r.direction.y, 1.0f / r.direction.z};
     struct RayResult result;
     int hit_mats[DEPTH];
-    
+
     for (int i = 0; i < DEPTH; i++)
     {
         hit_mats[i] = -1;
     }
     for (int i = 0; i < DEPTH; i++)
     {
-        
         barrier(NULL);
         result = trace(r, nodes, num_nodes, leaf_nodes);
 
         if (result.hit)
         {
             hit_mats[i] = result.mat;
-/*             struct Material mat = materials[result.mat];
-            if(i == 0)
-            {
-                accumulated_colour0 = mat.emissive;
-                accumulated_colour1 = mat.diffuse;
-                if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-        {
-            printf("emissive: %.2f, %.2f, %.2f\n", mat.emissive.x, mat.emissive.y, mat.emissive.z);
-            printf("diffuse: %.2f, %.2f, %.2f\n", mat.diffuse.x, mat.diffuse.y, mat.diffuse.z);
-            printf("colour0: %.2f, %.2f, %.2f\n", accumulated_colour0.x, accumulated_colour0.y, accumulated_colour0.z);
-            printf("colour1: %.2f, %.2f, %.2f\n", accumulated_colour1.x, accumulated_colour1.y, accumulated_colour1.z);
-        }
-            }
-            else
-            {
-                
-                accumulated_colour1 *= (mat.emissive + mat.diffuse);
-                if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-        {
-            printf("emissive: %.2f, %.2f, %.2f\n", mat.emissive.x, mat.emissive.y, mat.emissive.z);
-            printf("diffuse: %.2f, %.2f, %.2f\n", mat.diffuse.x, mat.diffuse.y, mat.diffuse.z);
-            printf("colour0: %.2f, %.2f, %.2f\n", accumulated_colour0.x, accumulated_colour0.y, accumulated_colour0.z);
-            printf("colour1: %.2f, %.2f, %.2f\n", accumulated_colour1.x, accumulated_colour1.y, accumulated_colour1.z);
-        }
-            }
-            // accumulated_colour *= 0.9f;*/
-            // Directional Light
             
+            /*             struct Material mat = materials[result.mat];
+                        if(i == 0)
+                        {
+                            accumulated_colour0 = mat.emissive;
+                            accumulated_colour1 = mat.diffuse;
+                            if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
+                    {
+                        printf("emissive: %.2f, %.2f, %.2f\n", mat.emissive.x, mat.emissive.y, mat.emissive.z);
+                        printf("diffuse: %.2f, %.2f, %.2f\n", mat.diffuse.x, mat.diffuse.y, mat.diffuse.z);
+                        printf("colour0: %.2f, %.2f, %.2f\n", accumulated_colour0.x, accumulated_colour0.y, accumulated_colour0.z);
+                        printf("colour1: %.2f, %.2f, %.2f\n", accumulated_colour1.x, accumulated_colour1.y, accumulated_colour1.z);
+                    }
+                        }
+                        else
+                        {
+                            
+
+                            accumulated_colour1 *= (mat.emissive + mat.diffuse);
+                            if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
+                    {
+                        printf("emissive: %.2f, %.2f, %.2f\n", mat.emissive.x, mat.emissive.y, mat.emissive.z);
+                        printf("diffuse: %.2f, %.2f, %.2f\n", mat.diffuse.x, mat.diffuse.y, mat.diffuse.z);
+                        printf("colour0: %.2f, %.2f, %.2f\n", accumulated_colour0.x, accumulated_colour0.y, accumulated_colour0.z);
+                        printf("colour1: %.2f, %.2f, %.2f\n", accumulated_colour1.x, accumulated_colour1.y, accumulated_colour1.z);
+                    }
+                        }
+                        // accumulated_colour *= 0.9f;*/
+            // Directional Light
+
             if (result.reflected)
             {
-                //int seed = random_seeds[global_index(0,0)];
-                
-                r.origin = result.hit_point;
-                //r.direction = normalize(-2 * dot(r.direction, result.hit_normal) * result.hit_normal + r.direction);
-                r.direction = normalize(r.direction - 2.0f * dot(r.direction, result.hit_normal) * result.hit_normal);
-               /*  if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-        {
+                // int seed = random_seeds[global_index(0,0)];
 
-            printf("origin: %.2f, %.2f, %.2f\n", r.origin.x, r.origin.y, r.origin.z);
-            printf("reflect dir: %.2f, %.2f, %.2f\n", r.direction.x, r.direction.y, r.direction.z);
-            printf("normal: %.2f, %.2f, %.2f\n", result.hit_normal.x, result.hit_normal.y, result.hit_normal.z);
-        } */
-                r.direction = normalize(r.origin + r.direction + (get_rand_float3(random_seeds, wrapping_index(i))+ get_rand_float3(random_seeds, wrapping_index(i + 3))+ get_rand_float3(random_seeds, wrapping_index(i + 6)) / 3)* materials[result.mat].roughness - r.origin);
-                
-                //random_seeds[global_index(0,0)] = seed;
-                
+                r.origin = result.hit_point;
+                // r.direction = normalize(-2 * dot(r.direction, result.hit_normal) * result.hit_normal + r.direction);
+                r.direction = normalize(
+                    r.direction - 2.0f * dot(r.direction, result.hit_normal) *
+                                      result.hit_normal);
+                /*  if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
+         {
+
+             printf("origin: %.2f, %.2f, %.2f\n", r.origin.x, r.origin.y, r.origin.z);
+             printf("reflect dir: %.2f, %.2f, %.2f\n", r.direction.x, r.direction.y, r.direction.z);
+             printf("normal: %.2f, %.2f, %.2f\n", result.hit_normal.x, result.hit_normal.y, result.hit_normal.z);
+         } */
+                r.direction = normalize(
+                    r.origin + r.direction +
+                    (get_rand_float3(random_seeds, wrapping_index(i)) +
+                     get_rand_float3(random_seeds, wrapping_index(i + 3)) +
+                     get_rand_float3(random_seeds, wrapping_index(i + 6)) / 3) *
+                        materials[result.mat].roughness -
+                    r.origin);
+
+                // random_seeds[global_index(0,0)] = seed;
+
                 r.inv_dir = r.direction;
 
                 /* if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
         {
             printf("new dir: %.2f, %.2f, %.2f\n", r.direction.x, r.direction.y, r.direction.z);
         } */
-
-            } 
+            }
         }
         else
         {
@@ -406,37 +453,31 @@ __kernel void ray_trace(
     }
     float3 indirect = (float3)(1.0f);
     float3 direct = (float3)(1.0f);
-    for(int i = DEPTH - 1; i >= 0; i--)
+    for (int i = DEPTH - 1; i >= 0; i--)
     {
-        
-        if(hit_mats[i] >= 0)
+        if (hit_mats[i] >= 0)
         {
             struct Material mat = materials[hit_mats[i]];
-            if(i > DEPTH)
+            if (i > DEPTH)
             {
-        indirect = mat.emissive + mat.diffuse * indirect;
+                indirect = mat.emissive + mat.diffuse * indirect;
             }
-    else{
-
-        indirect = mat.emissive + mat.diffuse * indirect;
-
-     }
+            else
+            {
+                indirect = mat.emissive + mat.diffuse * indirect;
+            }
         }
-        else{
-            if(i > DEPTH)
-            indirect = colour(r) * 0.7f;
-            else{
+        else
+        {
+            if (i > DEPTH)
+                indirect = colour(r) * 0.7f;
+            else
+            {
                 indirect = colour(r) * 0.7f;
             }
         }
-        
     }
-    if(get_global_id(0) == get_global_size(0)/2 && get_global_id(1) == get_global_size(1)/2)
-        {
-            //printf("emissive: %.2f, %.2f, %.2f\n", mat.emissive.x, mat.emissive.y, mat.emissive.z);
-            //printf("diffuse: %.2f, %.2f, %.2f\n", mat.diffuse.x, mat.diffuse.y, mat.diffuse.z);
-            //printf("out: %.2f, %.2f, %.2f\n", out_colour.x, out_colour.y, out_colour.z);
-        }
+    
     //
     /* struct AABB test;
     test.position = (float3)(0);
@@ -466,7 +507,9 @@ __kernel void ray_trace(
     intersects_sphere(r, sphere1, &t);
     
 
+
     
+
 
     if(t > 1e19)
     {

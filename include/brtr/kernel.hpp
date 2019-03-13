@@ -25,6 +25,7 @@ namespace brtr
         virtual void set_global_work_size(size_t size) = 0;
         virtual void set_global_work_size(size_t x, size_t y) = 0;
         virtual void set_local_work_size() = 0;
+        virtual void set_local_work_size(size_t x) = 0;
         virtual void set_local_work_size(size_t x, size_t y) = 0;
         virtual glm::ivec2 get_local_work_size() = 0;
         virtual void set_last_execution_time(float t) = 0;

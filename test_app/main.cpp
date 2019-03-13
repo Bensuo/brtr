@@ -15,8 +15,8 @@
 #include <glm/gtc/type_aligned.hpp>
 #include <iostream>
 
-const int screen_width = 1920;
-const int screen_height = 1080;
+const int screen_width = 1280;
+const int screen_height = 720;
 
 brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {
@@ -121,7 +121,7 @@ int main(int argc, char* argv[])
     brtr::ray_tracer tracer{platform, camera, screen_width, screen_height, 1};
     renderer render{screen_width, screen_height, tracer};
     std::vector<brtr::mesh> meshes;
-    const char* path_to_scene = "../../test_app/Assets/many_squares_walls.obj";
+    const char* path_to_scene = "../../test_app/Assets/single_monkey.obj";
     std::ifstream file;
     file.open(path_to_scene);
     if (!file)
@@ -148,6 +148,7 @@ int main(int argc, char* argv[])
     light.position = glm::vec3{2, -1, 5};
     light.colour = glm::vec3(50);
     light.radius = 4.0f;
+    tracer.add_light(light);
     // While application is running
     bool quit = false;
     SDL_Event e;
