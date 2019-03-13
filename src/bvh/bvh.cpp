@@ -157,12 +157,18 @@ namespace brtr
                 {
                     expand_aabb(
                         m_nodes[next].bounds, m_leaf_nodes[n.leaf_node[0]].bounds, margin);
+                }
+                else
+                {
+                    expand_aabb(m_nodes[next].bounds, m_nodes[n.children[0]].bounds, margin);
+                }
+                if (n.children[1] == -1)
+                {
                     expand_aabb(
                         m_nodes[next].bounds, m_leaf_nodes[n.leaf_node[1]].bounds, margin);
                 }
                 else
                 {
-                    expand_aabb(m_nodes[next].bounds, m_nodes[n.children[0]].bounds, margin);
                     expand_aabb(m_nodes[next].bounds, m_nodes[n.children[1]].bounds, margin);
                 }
                 next = n.parent;
