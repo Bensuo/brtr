@@ -6,16 +6,16 @@
 namespace brtr
 {
     bounding_volume_hierarchy::bounding_volume_hierarchy(std::shared_ptr<platform> platform)
-        : m_platform(platform->gpgpu())
+        : m_platform(platform->gpgpu()),
+          m_construction_time(0),
+          m_sort_time(0),
+          m_expansion_time(0)
     {
         m_kernel = m_platform->load_kernel(
             "../../src/gpgpu/opencl/bvh.cl", "calc_bounding_boxes");
 
         m_generate_kernel = m_platform->load_kernel(
             "../../src/gpgpu/opencl/bvh.cl", "generate_hierarchy");
-
-        m_expand_kernel = m_platform->load_kernel(
-            "../../src/gpgpu/opencl/bvh.cl", "expand_bounding_boxes");
     }
 
     void bounding_volume_hierarchy::add_mesh(const mesh& model_mesh, int material_index)
@@ -35,6 +35,8 @@ namespace brtr
 
     void bounding_volume_hierarchy::construct()
     {
+        std::chrono::high_resolution_clock::time_point construction_start =
+            std::chrono::high_resolution_clock::now();
         size_t depth = 0;
 
         const auto expand_aabb = [](aabb& surround, aabb& new_box, float margin) {
@@ -50,27 +52,10 @@ namespace brtr
             surround.max = max + glm::vec3(margin);
         };
 
-        /*int rounded_nodes = m_leaf_nodes.size() + m_leaf_nodes.size() % 4;
-        int total_nodes = 0;
-        int to_add = rounded_nodes;
-        while (true)
-        {
-            total_nodes += to_add;
-            to_add /= 4;
-            if (to_add <= 1)
-            {
-                total_nodes += to_add;
-                break;
-            }
-        }*/
         m_nodes.clear();
         m_nodes.resize(m_leaf_nodes.size() - 1);
         m_morton_codes.clear();
         m_morton_codes.resize(m_leaf_nodes.size(), 0);
-        // for (int i = m_leaf_nodes.size() - 1; i >= 0 ; ++i)
-        //{
-        //	m_nodes[m_nodes.size() - i].leaf_node = m_leaf_nodes.size() - 1 - i;
-        //}
 
         m_kernel->set_global_work_size(m_leaf_nodes.size());
         m_leaf_nodes_buffer = m_platform->create_buffer(
@@ -85,7 +70,7 @@ namespace brtr
 
         m_kernel->run();
         m_platform->run();
-        std::chrono::high_resolution_clock::time_point start =
+        std::chrono::high_resolution_clock::time_point sort_start =
             std::chrono::high_resolution_clock::now();
         std::sort(
             std::begin(m_leaf_nodes),
@@ -98,27 +83,9 @@ namespace brtr
         {
             m_morton_codes[i] = m_leaf_nodes[i].morton;
         }
-        /*for (int i = 0; i < m_leaf_nodes.size(); ++i)
-        {
-            int index = m_nodes.size() - (m_leaf_nodes.size() - i);
-            m_nodes[index].leaf_node = i + 1;
-            m_nodes[index].bounds = m_leaf_nodes[i].bounds;
-        }
-        for (int i = 0; i < m_nodes.size(); ++i)
-        {
-            for (int j = 0; j < 4; ++j)
-            {
-                int index = 4 * i + (j + 1);
-                if (m_nodes[i].leaf_node == 0 && index < m_nodes.size())
-                {
-                    m_nodes[i].children[j] = index;
-                }
-                else
-                {
-                    m_nodes[i].children[j] = 0;
-                }
-            }
-        }*/
+        std::chrono::high_resolution_clock::time_point sort_end =
+            std::chrono::high_resolution_clock::now();
+
         m_generate_kernel->set_global_work_size(m_nodes.size());
         m_generate_kernel->set_kernel_arg(buffer_operation::write, 0, m_nodes_buffer);
         m_generate_kernel->set_kernel_arg(buffer_operation::read, 0, m_nodes_buffer);
@@ -133,19 +100,8 @@ namespace brtr
         m_generate_kernel->run();
         m_platform->run();
 
-        /*for (int i = m_nodes.size() - m_leaf_nodes.size(); i >= 0; i--)
-        {
-            for (int j = 0; j < 4; ++j)
-            {
-                if (m_nodes[i].children[j] != 0)
-                {
-                    expand_aabb(
-                        m_nodes[i].bounds, m_nodes[m_nodes[i].children[j]].bounds);
-                }
-            }
-        }*/
-        std::vector<int> node_flags;
-        node_flags.resize(m_nodes.size(), 0);
+        std::chrono::high_resolution_clock::time_point expansion_start =
+            std::chrono::high_resolution_clock::now();
         float margin = 0.0f;
         for (int i = 0; i < m_leaf_nodes.size(); ++i)
         {
@@ -179,18 +135,13 @@ namespace brtr
             }
         }
 
-        /*m_expand_kernel->set_global_work_size(m_leaf_nodes.size());
-        m_expand_kernel->set_local_work_size(1);
-        m_expand_kernel->set_kernel_arg(buffer_operation::write, 0,
-        m_nodes_buffer); m_expand_kernel->set_kernel_arg(buffer_operation::read,
-        0, m_nodes_buffer); m_expand_kernel->set_kernel_arg(buffer_operation::write,
-        1, m_leaf_nodes_buffer); m_node_flags_buffer =
-        m_platform->create_buffer( buffer_access::read_write, sizeof(int),
-        m_nodes.size(), nullptr); m_expand_kernel->set_kernel_arg(buffer_operation::none,
-        2, m_node_flags_buffer); m_expand_kernel->run(); m_platform->run();*/
-        std::chrono::high_resolution_clock::time_point end =
+        std::chrono::high_resolution_clock::time_point expansion_end =
             std::chrono::high_resolution_clock::now();
-        m_construction_time = (end - start).count() / 1000000.0f;
+        m_sort_time = (sort_end - sort_start).count() / 1000000.0f;
+        m_expansion_time = (expansion_end - expansion_start).count() / 1000000.0f;
+        m_morton_time = m_kernel->get_last_execution_time();
+        m_generate_time = m_generate_kernel->get_last_execution_time();
+        m_construction_time = (expansion_end - construction_start).count() / 1000000.0f;
     }
 
     const std::vector<leaf_node>& bounding_volume_hierarchy::leaf_nodes() const

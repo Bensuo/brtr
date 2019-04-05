@@ -16,8 +16,8 @@ __kernel void combine(
     const int idx = global_index(0,0);
     float4 d = convert_float3(direct[idx]) / 255.99f;
     float4 i = convert_float3(indirect[idx]) / 255.99f;
-    float4 c = sqrt(d * i) * 255.99f;
+    float4 c = sqrt(i) * 255.99f;
     uchar4 o = convert_uchar4(c);
     o.w = 255;
-    out[idx] = indirect[idx];
+    out[idx] = direct[idx];
 }

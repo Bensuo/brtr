@@ -2,7 +2,14 @@
 namespace brtr
 {
     camera::camera()
-        : m_position(), m_look_at(), m_up(), m_rotation(), m_vertical_fov(0), m_aspect(0)
+        : m_position(),
+          m_look_at(),
+          m_up(),
+          m_rotation(),
+          m_vertical_fov(0),
+          m_aspect(0),
+          m_pitch(0),
+          m_yaw(0)
     {
         m_rotation = glm::identity<glm::quat>();
     }
@@ -20,6 +27,10 @@ namespace brtr
 
     camera_gpu camera::gpu()
     {
+        m_rotation =
+            glm::quat(glm::vec3(-glm::radians(m_pitch), -glm::radians(m_yaw), 0));
+        m_look_at = m_rotation * glm::vec3(0, 0, -1);
+
         camera_gpu cam;
         cam.position = m_position;
 

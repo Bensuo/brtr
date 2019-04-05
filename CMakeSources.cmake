@@ -23,7 +23,6 @@ set(BRTR_INC
     include/brtr/ray_tracer.hpp
     include/brtr/gpgpu_platform.hpp
     include/brtr/buffer.hpp
-    include/brtr/image_buffer.hpp
     include/brtr/mesh.hpp
     include/brtr/kernel.hpp
     include/brtr/bvh.hpp

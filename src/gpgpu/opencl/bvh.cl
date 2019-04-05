@@ -58,11 +58,6 @@ int global_index(const int offset_x, const int offset_y)
     return (x + y * get_global_size(0));
 }
 
-unsigned long concatenate(unsigned x, unsigned y)
-{
-    return (unsigned long)x << 32 | (unsigned long)y;
-}
-
 int delta(int i, int j, __global unsigned* morton_codes, int num_objects)
 {
     if (i < 0 || i >= num_objects || j < 0 || j >= num_objects) {
@@ -80,24 +75,18 @@ int2 calc_range(__global unsigned* morton_codes, int num_objects, int idx)
     {
         return (int2){0, num_objects - 1};
     }
-
     int prev_0 = delta(idx, idx-1, morton_codes, num_objects);
     int next_0 = delta(idx, idx+1, morton_codes, num_objects);
-
     int direction = sign((float)next_0 - (float)prev_0);
-
     int d_min = delta(idx, idx - direction, morton_codes, num_objects);
 
     int lmax = 2;
-
     while (delta(idx, idx + lmax * direction, morton_codes, num_objects) > d_min)
     {
         lmax = lmax * 2;
     }
 
-    // lmax = direction>0 ? num_objects-1 - idx : idx;
     int l = 0;
-
     int t = lmax;
     while(t >= 1)
     {
@@ -110,7 +99,6 @@ int2 calc_range(__global unsigned* morton_codes, int num_objects, int idx)
     }
     int jdx = idx + l * direction;
 
-    
     int2 range = (int2)(0,0);
     range.x = min(idx, jdx);
     range.y = max(idx, jdx);
@@ -128,7 +116,6 @@ int calc_split(__global unsigned* morton_codes, int first, int last)
     }
 
     int commonPrefix = clz(firstCode ^ lastCode);
-
     int split = first;
     int step = last - first;
 
@@ -275,7 +262,7 @@ __kernel void calc_bounding_boxes(__global struct LeafNode* leaf_nodes)
     }
     node.aabb.min = min;
     node.aabb.max = max;
-    pos = min + (max - min) / 2;
+    pos = normalize(min + (max - min) / 2);
     node.morton = calc_morton(pos.x, pos.y, pos.z);
     leaf_nodes[get_global_id(0)] = node;
 }

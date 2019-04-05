@@ -5,6 +5,7 @@
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <chrono>
+#include <fstream>
 #include <iostream>
 
 renderer::renderer(int w, int h, brtr::ray_tracer& tracer)
@@ -23,11 +24,11 @@ renderer::renderer(int w, int h, brtr::ray_tracer& tracer)
         screen_height,
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     imgui_window = SDL_CreateWindow(
-        "BRTR Test App",
+        "BRTR Test App Stats",
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        screen_width / 2,
-        screen_height / 2,
+        300,
+        400,
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
     const char* glsl_version = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
@@ -64,27 +65,6 @@ renderer::renderer(int w, int h, brtr::ray_tracer& tracer)
 
     output_texture = SDL_CreateTexture(
         sdl_renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STREAMING, screen_width, screen_height);
-
-    /*glGenTextures(1, &output_texture);
-    glBindTexture(GL_TEXTURE_2D, output_texture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    std::vector<GLubyte> empty(screen_width * screen_height * 3, 0);
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGB,
-        screen_width,
-        screen_height,
-        0,
-        GL_RGB,
-        GL_UNSIGNED_BYTE,
-        empty.data());
-    glBindTexture(GL_TEXTURE_2D, 0);*/
 }
 
 renderer::~renderer()
@@ -116,9 +96,7 @@ void renderer::render(float last_frame_time)
     bool active = false;
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
-    /*SDL_LockTexture(output_texture, NULL, &texture_ptr, &pitch);
-       std::memcpy(texture_ptr, tracer.result_buffer().data,
-       tracer.result_buffer().size); SDL_UnlockTexture(output_texture);*/
+
     SDL_UpdateTexture(
         output_texture,
         NULL,
@@ -132,12 +110,17 @@ void renderer::render(float last_frame_time)
     ImGui::NewFrame();
     bool win = true;
     auto stats = tracer.get_stats();
+    stats.last_frame_time = last_frame_time;
+    m_stats.push_back(stats);
     ImGui::Begin("BRTR Stats");
     ImGui::Text("Overall frame time: %.2fms", last_frame_time);
     ImGui::Text("Overall GPU: %.2fms", stats.total_overall);
-    ImGui::Text("Overall BVH: %.2fms", stats.total_bvh);
-    ImGui::Text("BVH Construction time: %.2fms", stats.bvh_construction);
-    ImGui::Text("Bvh GPU: %.2fms", stats.bvh_gpu);
+    ImGui::Text("Overall BVH: %.2fms", stats.bvh.construction_time);
+    ImGui::Text("BVH morton: %.2fms", stats.bvh.morton_time);
+    ImGui::Text("Bvh generate: %.2fms", stats.bvh.generate_time);
+    ImGui::Text("Bvh sort: %.2fms", stats.bvh.sort_time);
+    ImGui::Text("Bvh expansion: %.2fms", stats.bvh.expansion_time);
+    ImGui::Text("Tri count: %d", stats.bvh.object_count);
     ImGui::Text("Raytrace kernel time: %.2fms", stats.total_raytrace);
     ImGui::Text("Denoise kernel time: %.2fms", stats.denoise);
     ImGui::Text("Average overall time: %.2fms", stats.lifetime_overall / stats.num_iterations);
@@ -149,12 +132,33 @@ void renderer::render(float last_frame_time)
     ImGui::End();
 
     ImGui::Render();
-    // SDL_GL_MakeCurrent(window, gl_context);
+
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-    // glClearColor(clear_color.x, clear_color.y, clear_color.z,
-    // clear_color.w); glClear(GL_COLOR_BUFFER_BIT);
+
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     SDL_GL_SwapWindow(imgui_window);
     SDL_RenderPresent(sdl_renderer);
     // Update screen
+}
+
+void renderer::write_stats_csv(const std::string& fname)
+{
+    std::ofstream out;
+    out.open(fname);
+    out << "frame time,morton, sort, generate, expansion, construction, "
+           "raytrace, gaussian, median\n";
+    for (auto&& stats : m_stats)
+    {
+        out << stats.last_frame_time << ',';
+        out << stats.bvh.morton_time << ',';
+        out << stats.bvh.sort_time << ',';
+        out << stats.bvh.generate_time << ',';
+        out << stats.bvh.expansion_time << ',';
+        out << stats.bvh.construction_time << ',';
+        out << stats.total_raytrace << ',';
+        out << stats.denoise << ',';
+        out << stats.denoise_median << ',';
+        out << "\n";
+    }
+    out.close();
 }

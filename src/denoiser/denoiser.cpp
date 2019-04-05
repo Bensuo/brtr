@@ -20,8 +20,7 @@ namespace brtr
         m_denoise_kernel->set_global_work_size(w, h);
         m_denoise_kernel->set_local_work_size();
 
-        create_filter(2.0f);
-        // m_filter.assign(49, 1.0f / 49);
+        create_filter(1.0f);
         m_filter_buffer = m_gpgpu->create_buffer(
             buffer_access::read_only, sizeof(float), m_filter.size(), m_filter.data());
         m_result_buffer = m_gpgpu->create_buffer(
@@ -36,7 +35,7 @@ namespace brtr
         std::chrono::high_resolution_clock::time_point start =
             std::chrono::high_resolution_clock::now();
         m_denoise_kernel->set_kernel_arg(buffer_operation::none, 0, m_image_buffer);
-        m_denoise_kernel->set_kernel_arg(buffer_operation::none, 1, m_result_buffer);
+        m_denoise_kernel->set_kernel_arg(buffer_operation::read, 1, m_result_buffer);
         m_denoise_kernel->set_kernel_arg(buffer_operation::write, 2, m_filter_buffer);
         auto work_size = m_denoise_kernel->get_local_work_size();
         m_denoise_kernel->set_kernel_arg(

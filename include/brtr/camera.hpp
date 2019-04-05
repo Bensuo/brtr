@@ -41,7 +41,25 @@ namespace brtr
         {
             m_rotation *= glm::angleAxis(amount * 0.1f, axis * m_rotation);
             m_look_at = glm::vec3(0, 0, -1) * m_rotation;
-            // m_up = glm::vec3(0, 1, 0) * m_rotation;
+        }
+
+        void modify_pitch(float amount)
+        {
+            m_pitch += amount;
+            glm::clamp(m_pitch, -89.0f, 89.0f);
+        }
+        void modify_yaw(float amount)
+        {
+            m_yaw += amount;
+            if (m_yaw > 360.0f)
+                m_yaw -= 360.0f;
+            if (m_yaw < 0.0f)
+                m_yaw += 360.0f;
+        }
+
+        void set_yaw(float value)
+        {
+            m_yaw = value;
         }
         camera_gpu gpu();
 
@@ -52,5 +70,7 @@ namespace brtr
         glm::quat m_rotation;
         float m_vertical_fov;
         float m_aspect;
+        float m_pitch;
+        float m_yaw;
     };
 } // namespace brtr

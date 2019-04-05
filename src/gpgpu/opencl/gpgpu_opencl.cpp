@@ -16,19 +16,9 @@ namespace brtr
             throw std::runtime_error("Error: No OpenCL Platforms Found.");
         }
         m_platform = m_platforms[0];
-        for (const auto& p : m_platforms)
-        {
-            std::string s;
-            p.getInfo(CL_PLATFORM_VENDOR, &s);
-            if (std::string::npos != s.find("NVIDIA"))
-            {
-                m_platform = p;
-                break;
-            }
-        }
 
         std::vector<cl::Device> devices;
-        m_platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+        m_platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
         if (devices.size() == 0)
         {
             throw std::runtime_error("Error: No OpenCL devices found");
@@ -51,14 +41,6 @@ namespace brtr
     {
         return std::make_shared<buffer_opencl>(
             m_context, buffer_flags(access), data_ptr, stride, size);
-    }
-
-    image_buffer gpgpu_opencl::create_image_buffer(
-        buffer_access access, size_t width, size_t height, void* data_ptr)
-    {
-        cl::ImageFormat format{CL_RGBA, CL_UNORM_INT8};
-        m_image_buffers.emplace_back(m_context, buffer_flags(access), format, width, height);
-        return {data_ptr, m_image_buffers.size() - 1, width, height};
     }
 
     std::unique_ptr<kernel> gpgpu_opencl::load_kernel(const std::string& path, const std::string& kernel_name)

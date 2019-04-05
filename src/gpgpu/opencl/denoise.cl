@@ -1,4 +1,4 @@
-#define BLUR_RADIUS 7
+#define BLUR_RADIUS 4
 int local_index(const int offset_x, const int offset_y)
 {
     int x = get_local_id(0) + (BLUR_RADIUS -1) + offset_x;

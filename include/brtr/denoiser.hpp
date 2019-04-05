@@ -14,12 +14,10 @@ namespace brtr
         {
             return m_result_buffer;
         }
-
         float execution_time()
         {
             return m_denoise_kernel->get_last_execution_time();
         }
-
     private:
         void create_filter(float strength);
         std::shared_ptr<gpgpu_platform> m_gpgpu;
@@ -30,7 +28,6 @@ namespace brtr
         std::vector<float> m_filter;
         std::vector<uint8_t> m_result_data;
         float m_radius;
-
         float m_execution_time;
     };
 } // namespace brtr

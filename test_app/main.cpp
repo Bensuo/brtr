@@ -15,8 +15,8 @@
 #include <glm/gtc/type_aligned.hpp>
 #include <iostream>
 
-const int screen_width = 1280;
-const int screen_height = 720;
+const int screen_width = 1920;
+const int screen_height = 1080;
 
 brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
 {
@@ -64,15 +64,6 @@ brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
             diffuse.b = ai_diffuse.b;
         }
 
-        // aiColor3D ai_specular;
-        // glm::aligned_vec3 specular;
-        // if (AI_SUCCESS == ai_mat->Get(AI_MATKEY_COLOR_SPECULAR, ai_specular))
-        //{
-        //    specular.r = ai_specular.r;
-        //    specular.g = ai_specular.g;
-        //    specular.b = ai_specular.b;
-        //}
-
         aiColor3D ai_emissive;
         glm::aligned_vec3 emissive;
         if (AI_SUCCESS == ai_mat->Get(AI_MATKEY_COLOR_EMISSIVE, ai_emissive))
@@ -83,9 +74,8 @@ brtr::mesh ProcessMesh(aiMesh* mesh, const aiScene* scene)
         }
 
         material.diffuse = diffuse;
-        material.roughness = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-        static int count = 0;
-        material.roughness = count++ % 2 == 0 ? 1.0f : 0.001f;
+        material.roughness = 0.82f;
+
         material.emissive = emissive;
     }
 
@@ -111,17 +101,16 @@ int main(int argc, char* argv[])
     Assimp::Importer importer;
     auto platform = std::make_shared<brtr::platform>();
     brtr::camera camera;
-    camera.set_fov(90.0f, (float)screen_width / (float)screen_height);
-    camera.set_position(glm::vec3(-10.0f, 5.5f, -10.0f));
-    camera.set_look_at(glm::vec3(-1, 0, -1));
-    camera.rotate(glm::radians(900.0f), glm::vec3(0, 1, 0));
-    camera.rotate(glm::radians(450.0f), glm::vec3(1, 0, 0));
+    camera.set_fov(60.0f, (float)screen_width / (float)screen_height);
+    camera.set_position(glm::vec3(-68.1f, 32.9f, -6.67f));
+    camera.set_yaw(90.0f);
+
     camera.set_up(glm::vec3(0, 1, 0));
     glm::vec3 camera_target{20.0f, 5.5f, 25.0f};
-    brtr::ray_tracer tracer{platform, camera, screen_width, screen_height, 1};
+    brtr::ray_tracer tracer{platform, camera, screen_width, screen_height};
     renderer render{screen_width, screen_height, tracer};
     std::vector<brtr::mesh> meshes;
-    const char* path_to_scene = "../../test_app/Assets/single_monkey.obj";
+    const char* path_to_scene = "../../test_app/Assets/cornell.obj";
     std::ifstream file;
     file.open(path_to_scene);
     if (!file)
@@ -144,11 +133,10 @@ int main(int argc, char* argv[])
     {
         tracer.add_mesh(mesh);
     }
-    brtr::point_light light;
-    light.position = glm::vec3{2, -1, 5};
-    light.colour = glm::vec3(50);
-    light.radius = 4.0f;
-    tracer.add_light(light);
+    brtr::directional_light light;
+    light.direction = glm::vec3{1.5f, -1, 1};
+    light.colour = glm::vec3(0.7f);
+    tracer.set_directional_light(light);
     // While application is running
     bool quit = false;
     SDL_Event e;
@@ -159,12 +147,13 @@ int main(int argc, char* argv[])
         std::chrono::high_resolution_clock::now();
     std::chrono::high_resolution_clock::time_point end =
         std::chrono::high_resolution_clock::now();
+    float speed = 0.01f;
+    int counter = 0;
     while (!quit)
     {
         std::chrono::high_resolution_clock::time_point end =
             std::chrono::high_resolution_clock::now();
         float delta = (end - start).count() / 1000000.0f;
-        // camera.move_right(0.0005f * delta);
         // Handle events on queue
         while (SDL_PollEvent(&e) != 0)
         {
@@ -175,8 +164,8 @@ int main(int argc, char* argv[])
             }
             if (e.type == SDL_MOUSEMOTION)
             {
-                camera.rotate(e.motion.yrel * 0.01f, glm::vec3(1, 0, 0));
-                camera.rotate(e.motion.xrel * 0.01f, glm::vec3(0, 1, 0));
+                camera.modify_pitch(e.motion.yrel * 0.001f * delta);
+                camera.modify_yaw(e.motion.xrel * 0.001f * delta);
             }
             if (e.type == SDL_KEYDOWN)
             {
@@ -198,29 +187,24 @@ int main(int argc, char* argv[])
                 }
                 if (e.key.keysym.sym == SDLK_w)
                 {
-                    // camera.set_position(camera.position() + glm::vec3(0, 0.1f, 0));
-                    camera.move_forward(0.2f);
+                    camera.move_forward(speed * delta);
                 }
                 if (e.key.keysym.sym == SDLK_s)
                 {
-                    // camera.set_position(camera.position() + glm::vec3(0, -0.1f, 0));
-                    camera.move_forward(-0.2f);
+                    camera.move_forward(-speed * delta);
                 }
                 if (e.key.keysym.sym == SDLK_a)
                 {
-                    // camera.set_position(camera.position() + glm::vec3(0, 0.1f, 0));
-                    camera.move_right(-0.2f);
+                    camera.move_right(-speed * delta);
                 }
                 if (e.key.keysym.sym == SDLK_d)
                 {
-                    // camera.set_position(camera.position() + glm::vec3(0, -0.1f, 0));
-                    camera.move_right(0.2f);
+                    camera.move_right(speed * delta);
                 }
                 if (e.key.keysym.sym == SDLK_ESCAPE)
                 {
                     quit = true;
                 }
-                // camera.set_look_at(camera.position() + glm::vec3(0, 0, -1));
             }
             ImGui_ImplSDL2_ProcessEvent(&e);
         }
@@ -230,7 +214,10 @@ int main(int argc, char* argv[])
 
         start = end;
     }
-
+    int timestamp = std::chrono::duration_cast<std::chrono::seconds>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
+    render.write_stats_csv("test" + std::to_string(timestamp) + ".csv");
     SDL_Quit();
     return 0;
 }
